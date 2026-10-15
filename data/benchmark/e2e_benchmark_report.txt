@@ -1,0 +1,11 @@
+AURA FULL RAG BENCHMARK
+Timestamp: 2026-08-19 22:03:24
+Queries: 100
+total_ms: avg=13.566, p50=12.973, p70=14.359, p100=18.471
+retrieval_ms: avg=11.329, p50=10.797, p70=12.162, p100=16.119
+generation_ms: avg=0.946, p50=0.915, p70=0.980, p100=1.443
+guardrail_ms: avg=0.015, p50=0.014, p70=0.016, p100=0.028
+embedding_ms: avg=10.378, p50=9.873, p70=11.237, p100=15.211
+faiss_ms: avg=0.951, p50=0.923, p70=0.966, p100=1.392
+rerank_ms: avg=0.830, p50=0.815, p70=0.930, p100=1.390
+FULL_RAG_STATUS=PASS

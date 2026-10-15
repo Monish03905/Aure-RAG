@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.idea/
+.vscode/
+.env
+*.log
+.DS_Store
+data/raw/
+data/uploads/
+data/sessions/
+data/user_index/
+huggingface/
+.cache/
