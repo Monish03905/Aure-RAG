@@ -1,203 +1,220 @@
-# AURA — Adaptive Universal RAG Assistant
+<div align="center">
 
-VOICE-FIRST • MULTILINGUAL • GROUNDED • MEASURABLE • FUTURISTIC
+# AURA
+### Adaptive Universal RAG Assistant
 
-One deployable project: FastAPI serves the API **and** the interactive frontend from a single process.
+**Your files in. Grounded answers out.**
 
-## Official task alignment
+An offline-first, multilingual chat assistant that lets you talk to your documents, inspect its sources, and see each step of the retrieval pipeline.
 
-AURA implements the required flow:
+<img src="https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white" alt="Python 3.11 or newer">
+<img src="https://img.shields.io/badge/API-FastAPI-009688?logo=fastapi&logoColor=white" alt="FastAPI">
+<img src="https://img.shields.io/badge/Search-FAISS-0467DF" alt="FAISS">
+<img src="https://img.shields.io/badge/Mode-Offline--first-167D69" alt="Offline first">
 
-Microphone → Sarvam Saaras v3 STT → query analysis → adaptive retrieval → FAISS → reranking → grounded answer → guardrails → futuristic UI.
+[Quick start](#-quick-start) · [How it works](#-how-it-works) · [Try the chat](#-chat-with-your-files) · [Run tests](#-test-and-benchmark)
 
-The official brief requires a voice-enabled RAG system, Sarvam or ElevenLabs STT, non-trivial chunking, a full RAG-path target under 200 ms, P50/P70/P100 analytics, a structured harness, and guardrails for unsupported/unsafe/off-topic answers.
+</div>
 
-## Technical design
+---
 
-### 1. STT
-Uses Sarvam Saaras v3 through `POST /api/voice`.
+## Meet AURA
 
-### 2. Chunking
-The corpus uses three strategies:
-- sentence chunks
-- sliding semantic chunks with overlap
-- metadata-aware chunks preserving language/query-type/selection metadata
+AURA turns a collection of documents into a searchable, conversational workspace. Drop a file into a chat, ask a question in plain language, then check the retrieved passages and timing details behind the answer.
 
-### 3. Retrieval
-- multilingual sentence-transformer embeddings
-- FAISS dense retrieval
-- adaptive top-N candidate count based on query complexity/type
-- deduplication
-- lightweight metadata + lexical reranking
+| Ask about your own files | See the evidence | Keep control |
+| --- | --- | --- |
+| Attach PDFs, Word docs, Markdown, text, CSV, JSON, and log files. | Inspect source excerpts, relevance scores, confidence, and stage timings. | Keep document retrieval scoped to its chat; choose whether to search the bundled corpus too. |
 
-### 4. Harness
-`AuraRAG.ask()` is the structured controller. It provides:
-- input validation
-- retries
-- structured JSON output
-- stage-level latency instrumentation
-- fallback/abstention paths
+**Designed for:** local experiments, document Q&A, multilingual RAG demos, and fast iteration on a real retrieval pipeline.
 
-### 5. Guardrails
-AURA can refuse:
-- unsafe queries
-- insufficiently supported queries
-- empty/invalid answers
+> **Local-first, with clear boundaries:** Once the embedding model is cached, text and file-based RAG can run locally. First-time model setup may download model files. Voice transcription uses the optional Sarvam service and requires internet access. An optional Ollama model can draft longer answers on your own machine.
 
-Every response includes a confidence/grounding state and supporting evidence.
+## What you can do
 
-### 6. Voice
-The browser records a short audio clip and sends it to `/api/voice`. Sarvam returns transcript + language code, then AURA runs the RAG pipeline on the transcript.
+- **Chat with attachments:** Upload one or more supported files in the chat, or drag them into the window.
+- **Search two knowledge sources:** Toggle chat files and the prebuilt AURA corpus independently.
+- **Follow the pipeline:** Watch analyze, retrieve, rerank, generate, and guardrail stages with measured timings.
+- **Check the answer:** Review retrieved excerpts, source names, scores, and grounded or abstained status.
+- **Keep conversations organized:** Reopen saved chats; each chat's uploads are isolated from other chats.
+- **Choose your answer style:** Use fast extractive answers by default, or optionally enable local Ollama drafting.
+- **Try voice input:** Send a short recording through Sarvam Saaras v3 speech-to-text.
 
-## Project layout
+## How it works
 
-```text
-AURA_FINAL_PATCH/
-├── backend/                 # FastAPI + RAG harness
-│   ├── main.py              # API + static UI hosting
-│   └── rag/                 # analyzer, retrieve, rerank, generate, guardrails
-├── frontend/                # Interactive UI (served by FastAPI)
-├── data/index/              # Prebuilt FAISS index + metadata.jsonl
-├── scripts/                 # Benchmark + guardrail tests
-├── requirements.txt
-├── .env.example
-├── run.ps1                  # One-command local launch (Windows)
-├── Dockerfile               # Container deploy
-└── Procfile                 # PaaS deploy (Railway/Render/Heroku-style)
+```mermaid
+flowchart LR
+    U["Chat, voice, or file"] --> A["Analyze query"]
+    A --> R["Retrieve from enabled FAISS indexes"]
+    R --> S["Rerank and deduplicate evidence"]
+    S --> G["Extractive answer or local Ollama"]
+    G --> V["Safety and evidence guardrails"]
+    V --> O["Answer, sources, confidence, timings"]
+    F["Uploaded file"] --> P["Parse and chunk"]
+    P --> E["Embed and persist"]
+    E --> R
 ```
 
-## Setup
+### The six pipeline stages
 
-```powershell
-python -m pip install -r requirements.txt
-copy .env.example .env
-```
+1. **Listen** — accept a typed question, voice transcript, or attachment and associate it with a chat.
+2. **Analyze** — infer language, query type, complexity, and normalized search text.
+3. **Retrieve** — search the enabled base and chat-upload FAISS indexes.
+4. **Rerank** — deduplicate candidates and blend semantic, lexical, and metadata relevance.
+5. **Generate** — return a relevant evidence extract, or use a configured loopback Ollama model.
+6. **Guardrail** — refuse unsafe or weakly supported requests rather than inventing an answer.
 
-Put your Sarvam key in `.env`:
+The FastAPI service hosts both the API and browser interface. The structured RAG controller also reports stage-level latency and grounding metadata, making the path easier to test and tune.
 
-```text
-SARVAM_API_KEY=...
-```
+## Quick start
 
-The prebuilt FAISS assets must already exist:
+### Requirements
 
-```text
-data/index/aura.index
-data/index/metadata.jsonl
-```
+- Python 3.11 or newer
+- The prebuilt files in `data/index/` (included in this repository)
+- Internet access on first startup if the embedding model is not already cached
 
-## Run (recommended — single port)
+### Windows — one command
 
 ```powershell
 .\run.ps1
 ```
 
-Or manually:
+The launcher creates `.venv` if needed, installs dependencies, creates `.env` from the example, and starts AURA at **http://127.0.0.1:8000**.
+
+### Windows — manual setup
 
 ```powershell
-python -m uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+Copy-Item .env.example .env
+.\.venv\Scripts\python.exe -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
 ```
 
-Open:
+### macOS / Linux
 
-`http://127.0.0.1:8000`
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+cp .env.example .env
+.venv/bin/python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
+```
 
-API docs:
+Open the chat at **http://127.0.0.1:8000**. The interactive API documentation is at **http://127.0.0.1:8000/docs** and the readiness check is at **http://127.0.0.1:8000/health**.
 
-`http://127.0.0.1:8000/docs`
+### Add voice or local generation (optional)
 
-Health:
+Add a Sarvam API key to `.env` to use voice transcription:
 
-`http://127.0.0.1:8000/health`
+```dotenv
+SARVAM_API_KEY=your_sarvam_api_key
+```
 
-> Optional separate frontend server is no longer required. FastAPI already hosts `frontend/`.
+For local answer drafting, install Ollama, pull a model, and set its name in `.env`:
 
-## Deploy
+```powershell
+ollama pull qwen2.5:3b
+```
 
-### Docker
+```dotenv
+AURA_LOCAL_LLM_URL=http://127.0.0.1:11434
+AURA_LOCAL_LLM_MODEL=qwen2.5:3b
+```
+
+Leave `AURA_LOCAL_LLM_MODEL` blank to keep fast extractive answers. When enabled, AURA sends retrieved evidence only to the configured loopback Ollama server. It does not execute shell commands or write project files.
+
+## Chat with your files
+
+1. Choose **New chat** or reopen a conversation.
+2. Select the paperclip or drop a supported document into the chat. Wait for the **indexed chunks** confirmation.
+3. Ask a question about the file. Turn **Files** and **Corpus** on or off to control which indexes are searched.
+4. Open **Details** to inspect the answer state, timing, analysis, and retrieved source excerpts.
+
+**Supported formats:** PDF, TXT, Markdown, CSV, JSON, DOCX, and LOG. The default per-file size limit is **25 MB**; change it with `AURA_MAX_UPLOAD_MB`.
+
+### Example API flow
+
+Create a session, attach a file to it, and ask about that file:
+
+```powershell
+$session = Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:8000/api/sessions"
+$sessionId = $session.session_id
+
+curl.exe -X POST `
+  -F "file=@.\notes.pdf" `
+  -F "session_id=$sessionId" `
+  "http://127.0.0.1:8000/api/upload"
+
+$body = @{
+  message = "What are the main conclusions?"
+  session_id = $sessionId
+  use_base_corpus = $false
+  use_uploads = $true
+} | ConvertTo-Json
+
+Invoke-RestMethod -Method Post `
+  -Uri "http://127.0.0.1:8000/api/chat" `
+  -ContentType "application/json" `
+  -Body $body
+```
+
+The chat response includes the answer, grounding state, confidence, generation mode, source excerpts, analysis, per-stage timings, and attachment names. The legacy `POST /api/ask` endpoint remains available for one-off queries against the broader corpus.
+
+## Test and benchmark
+
+Run the workflow and guardrail tests:
+
+```powershell
+.\.venv\Scripts\python.exe -m unittest scripts.test_rag_workflow scripts.test_guardrails -v
+```
+
+Run the 100-query end-to-end RAG benchmark:
+
+```powershell
+.\.venv\Scripts\python.exe -m scripts.benchmark_e2e 100
+```
+
+The benchmark reports **P50, P70, and P100** for the full RAG path and its measured stages. The project target is a full RAG-path P100 below **200 ms**; actual timing depends on the machine and model. The report is written to `data/benchmark/e2e_benchmark_report.txt`.
+
+## Configuration
+
+| Variable | Default | What it controls |
+| --- | --- | --- |
+| `AURA_EMBEDDING_MODEL` | `paraphrase-multilingual-MiniLM-L12-v2` | Local multilingual embedding model |
+| `AURA_MAX_UPLOAD_MB` | `25` | Maximum size of each uploaded file |
+| `CORS_ORIGINS` | `*` | Comma-separated allowed browser origins |
+| `SARVAM_API_KEY` | *(empty)* | Optional Sarvam voice transcription |
+| `AURA_LOCAL_LLM_URL` | `http://127.0.0.1:11434` | Loopback Ollama server URL |
+| `AURA_LOCAL_LLM_MODEL` | *(empty)* | Installed Ollama model; blank selects extractive answers |
+| `AURA_LOCAL_LLM_TIMEOUT_SECONDS` | `90` | Local generation request timeout |
+
+## Deploy with Docker
 
 ```powershell
 docker build -t aura-rag .
 docker run -p 8000:8000 --env-file .env aura-rag
 ```
 
-### PaaS (Railway / Render / Fly)
+Include `data/index/` in the deployment artifact. For a PaaS deployment, provide the optional environment variables through the platform configuration and use the included `Procfile`. First boot may download the sentence-transformer model; baking or caching it can improve cold-start time.
 
-1. Set `SARVAM_API_KEY` in the platform environment.
-2. Use the `Procfile` start command, or:
-   `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`
-3. Ensure `data/index/` is included in the deploy artifact.
+## Project map
 
-First boot downloads the sentence-transformer model (≈120MB). Keep that warm or bake it into the image for faster cold starts.
-
-## Benchmark
-
-Run at least 100 queries:
-
-```powershell
-python -m scripts.benchmark_e2e 100
+```text
+backend/
+  main.py                 FastAPI routes, lifecycle, and UI hosting
+  agent/chat_agent.py     Chat session orchestration
+  rag/                    Parsing, chunking, retrieval, reranking, answers, guardrails
+  services/sessions.py    Persistent chat sessions
+frontend/
+  index.html              Chat layout
+  app.js                  Chat, uploads, voice, and live pipeline
+  style.css               Responsive interface
+data/
+  index/                  Bundled FAISS index and metadata
+scripts/
+  test_rag_workflow.py    Upload, retrieval, and generation tests
+  test_guardrails.py      Safety and grounding checks
+  benchmark_e2e.py        Full RAG-path latency benchmark
 ```
 
-The final report is written to:
-
-`data/benchmark/e2e_benchmark_report.txt`
-
-It reports P50/P70/P100 for the complete RAG path and separate stage timings.
-
-## Demo checklist
-
-1. English typed query
-2. Telugu typed query
-3. Voice query using Sarvam
-4. Unsupported/off-topic query → abstention
-5. Unsafe query → refusal
-6. Show sources and confidence
-7. Show measured latency telemetry
-
-## Important wording for the demo
-
-By default, answers are intentionally extractive and evidence-preserving. To draft richer responses, set `AURA_LOCAL_LLM_MODEL` to a model already installed in local Ollama. AURA sends retrieved evidence only to a loopback Ollama URL and still applies the same evidence threshold and safety guardrails. With no local model configured, no LLM server is contacted.
-
-## Chat and document workflow
-
-The browser interface and API are served by the same FastAPI process. Each chat has its own persistent session, message history, and attachment list:
-
-1. Create a chat or select a saved chat in the sidebar.
-2. Attach one or more PDF, TXT, Markdown, CSV, JSON, DOCX, or LOG files. A file is validated, saved locally, parsed, chunked with overlap, embedded, and added to the persistent upload FAISS index before it is marked indexed.
-3. Ask a question. The chat endpoint scopes upload retrieval to documents attached to that chat, optionally searches the bundled base corpus, reranks the combined evidence, generates a grounded answer, and runs the unsupported/unsafe guardrails.
-4. Inspect the cited evidence, query analysis, per-stage timings, and grounded/abstained status in the chat and Details panel.
-
-The Files and Corpus switches control retrieval independently. Chat attachments are isolated between chat sessions; the legacy `/api/ask` endpoint remains available for one-off corpus-wide queries. Upload size is limited by `AURA_MAX_UPLOAD_MB` (25 MB by default). Uploaded originals, session JSON, and the mutable user index are local runtime data and are excluded from Git.
-
-### Pipeline stages
-
-* **Listen:** Accept a typed message, voice transcript, or attachment; associate it with a persistent session.
-* **Analyze:** Infer language, query type, complexity, and normalized search text; return these in `analysis`.
-* **Retrieve:** Embed and search the enabled FAISS indexes; restrict upload hits to the current chat.
-* **Rerank:** Deduplicate candidates, then blend semantic, lexical, and metadata relevance; return ranked chunks and scores.
-* **Generate:** Use a matching dataset answer/evidence extract by default, or a local Ollama model when configured; report `generation_mode`.
-* **Guardrail:** Skip generation for unsafe or weakly supported retrieval, then report grounded state, reason, and confidence.
-
-With the optional local model configured, AURA can draft longer explanations and project/code content grounded in retrieved documents. It does not run shell commands or write generated project files. To enable richer generation, install Ollama, download a model once (for example `ollama pull qwen2.5:3b`), then set `AURA_LOCAL_LLM_MODEL=qwen2.5:3b` in `.env`; keep the Ollama server on `127.0.0.1`. Without that setting AURA remains fast and extractive. When the embedding model is not already cached, first startup needs internet access to download it; subsequent runs can use the local cache. Voice transcription via Sarvam is optional and requires internet.
-
-## Validation
-
-Install dependencies, then run the focused workflow tests:
-
-```powershell
-.\.venv\Scripts\python.exe -m unittest scripts.test_rag_workflow scripts.test_guardrails
-```
-
-To check the running service and endpoints, start AURA with `.\run.ps1`, then visit `/health` and `/docs`. The workflow tests verify chat attachment isolation, upload indexing, and persistence across a store reload.
-
-## Configuration
-
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `AURA_EMBEDDING_MODEL` | `paraphrase-multilingual-MiniLM-L12-v2` | Local multilingual embedding model |
-| `AURA_MAX_UPLOAD_MB` | `25` | Per-file upload size limit |
-| `CORS_ORIGINS` | `*` | Comma-separated browser origins |
-| `SARVAM_API_KEY` | empty | Optional voice transcription key |
-| `AURA_LOCAL_LLM_URL` | `http://127.0.0.1:11434` | Local Ollama URL (must be loopback) |
-| `AURA_LOCAL_LLM_MODEL` | empty | Ollama model name; blank keeps extractive generation |
-| `AURA_LOCAL_LLM_TIMEOUT_SECONDS` | `90` | Local generation request timeout |
+Uploaded originals, saved sessions, the mutable user index, and `.env` are local runtime data and are excluded from Git.
