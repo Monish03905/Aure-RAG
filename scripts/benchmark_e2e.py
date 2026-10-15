@@ -34,12 +34,12 @@ def load_queries(n):
     path = "data/raw/dev_sample.jsonl"
     if not os.path.exists(path):
         fallback = [
-            "What is a corporation?",
-            "What is artificial intelligence?",
-            "What is machine learning?",
-            "What is data science?",
-            "RAG అంటే ఏమిటి?",
-            "కార్పొరేషన్ అంటే ఏమిటి?",
+            "Describe how a corporation is treated as a legal entity.",
+            "Explain how computers perform tasks associated with human intelligence.",
+            "Describe how machine learning systems learn from data.",
+            "Explain which methods are used in data science.",
+            "Explain how retrieval-augmented generation uses a knowledge base.",
+            "సాధారణంగా కార్పొరేషన్ ఎలా పనిచేస్తుంది?",
         ]
         return (fallback * ((n // len(fallback)) + 1))[:n]
 
@@ -61,6 +61,9 @@ def load_queries(n):
 
 
 def main():
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+
     n = int(sys.argv[1]) if len(sys.argv) > 1 else 100
     queries = load_queries(n)
     aura = AuraRAG()

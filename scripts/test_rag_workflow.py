@@ -10,11 +10,12 @@ from unittest.mock import MagicMock, Mock, patch
 import faiss
 import numpy as np
 
-from backend.rag.pipeline import AuraRAG
+from backend.rag.pipeline import AuraRAG, _find_demo
 from backend.rag import generator
 from backend.rag.document_loader import load_pdf
 from backend.rag.guardrails import validate_retrieval
 from backend.rag.user_store import UserDocumentStore
+from scripts.benchmark_e2e import load_queries
 
 
 class FixedEmbeddings:
@@ -259,6 +260,12 @@ class RagWorkflowTests(unittest.TestCase):
             result["answer"],
             "Upload size is limited by AURA_MAX_UPLOAD_MB (25 MB by default).",
         )
+
+    def test_benchmark_fallback_queries_exercise_retrieval(self):
+        with patch("scripts.benchmark_e2e.os.path.exists", return_value=False):
+            queries = load_queries(6)
+        self.assertEqual(len(queries), 6)
+        self.assertTrue(all(_find_demo(query) is None for query in queries))
 
 
 if __name__ == "__main__":
